@@ -1,0 +1,975 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Star Dash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Figtree:wght@400;500;600&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: top bar (moon deco + logo left, account/help/language right), centered title + Play,
+   rocket panel bottom-left, best/time/last-score strip bottom-right. Dark-only space look. */
+:root {
+  --bg: #060a1c;
+  --panel: #0d1431;
+  --panel-2: #131c42;
+  --line: #28346a;
+  --fg: #e9edff;
+  --muted: #98a3d4;
+  --accent: #ffb23f;      /* rocket flame */
+  --accent-ink: #2a1500;
+  --star: #facc15;
+  --cyan: #4cc3ff;
+  --danger: #ff7b7b;
+  --f-display: "Chakra Petch", "Cairo", system-ui, sans-serif;
+  --f-body: "Figtree", "Cairo", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 16px/1.5 var(--f-body);
+  padding-block: 14px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  position: relative;
+  overflow-x: hidden;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(1px 1px at 12% 22%, #fff 99%, transparent),
+    radial-gradient(1.5px 1.5px at 78% 12%, #cfe3ff 99%, transparent),
+    radial-gradient(1px 1px at 34% 68%, #fff 99%, transparent),
+    radial-gradient(1px 1px at 90% 58%, #fff 99%, transparent),
+    radial-gradient(1.5px 1.5px at 56% 36%, #ffe9b0 99%, transparent),
+    radial-gradient(1px 1px at 6% 84%, #cfe3ff 99%, transparent),
+    radial-gradient(1px 1px at 66% 90%, #fff 99%, transparent),
+    radial-gradient(60% 50% at 85% 0%, rgba(76,195,255,.12), transparent 70%),
+    radial-gradient(50% 45% at 5% 100%, rgba(255,178,63,.09), transparent 70%);
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.moon { width: 64px; height: 64px; flex: none; }
+.logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo svg { width: 44px; height: 44px; flex: none; }
+.logo b { font: 700 1.35rem/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
+.logo b i { font-style: normal; color: var(--accent); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; position: relative; }
+.tool {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  font-weight: 600; font-size: .92rem; max-width: 100%;
+}
+.tool:hover { border-color: var(--cyan); background: var(--panel-2); }
+.tool svg { width: 20px; height: 20px; flex: none; stroke: var(--cyan); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tool span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 12ch; }
+.langmenu {
+  position: absolute; top: calc(100% + 6px); inset-inline-end: 0; z-index: 5; min-width: 170px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 6px;
+  display: grid; gap: 2px; box-shadow: 0 14px 40px rgba(0,0,0,.5);
+}
+.langmenu button { text-align: start; background: none; border: 0; padding: 10px 12px; border-radius: 8px; }
+.langmenu button:hover, .langmenu button[aria-checked="true"] { background: var(--panel); }
+.langmenu button[aria-checked="true"]::after { content: "  ✓"; color: var(--accent); }
+
+/* hero */
+.hero { display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; padding-block: 18px 4px; }
+.hero h1 {
+  margin: 0; font: 700 clamp(2.1rem, 7vw, 4.2rem)/1.05 var(--f-display);
+  letter-spacing: .02em; text-wrap: balance; text-transform: uppercase;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { margin: 0; color: var(--muted); max-width: 46ch; text-wrap: balance; }
+.play {
+  display: inline-flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 44px;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 14px;
+  font: 700 1.45rem/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase;
+  box-shadow: 0 6px 0 #b86f00, 0 18px 40px rgba(255,178,63,.25);
+  transition: transform .12s, box-shadow .12s;
+}
+.play:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #b86f00, 0 22px 46px rgba(255,178,63,.35); }
+.play:active { transform: translateY(4px); box-shadow: 0 2px 0 #b86f00; }
+.play svg { width: 22px; height: 22px; fill: currentColor; }
+
+/* lower area */
+.lower { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; align-items: end; }
+.rocketpanel {
+  min-height: 330px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; position: relative;
+  background: radial-gradient(70% 70% at 50% 85%, #1b2a66 0%, var(--panel) 65%);
+  display: grid; place-items: center;
+}
+.rocketpanel svg.big { width: min(240px, 60%); height: auto; filter: drop-shadow(0 0 30px rgba(76,195,255,.25)); animation: bob 4.5s ease-in-out infinite; }
+.rocketpanel .flame { transform-origin: 50px 76px; animation: flick .18s ease-in-out infinite alternate; }
+.rocketpanel .sparkle { position: absolute; fill: var(--star); animation: tw 3s ease-in-out infinite; }
+.sparkle.a { top: 14%; left: 12%; width: 22px; }
+.sparkle.b { top: 30%; right: 14%; width: 14px; animation-delay: -1s; }
+.sparkle.c { bottom: 18%; left: 20%; width: 12px; animation-delay: -2s; }
+.sparkle.d { bottom: 26%; right: 22%; width: 18px; animation-delay: -.5s; }
+@keyframes bob { 50% { transform: translateY(-12px) rotate(2deg); } }
+@keyframes flick { to { transform: scaleY(1.22); } }
+@keyframes tw { 50% { opacity: .25; transform: scale(.7); } }
+
+.stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+}
+.stat { padding: 18px 12px; text-align: center; display: grid; gap: 6px; min-width: 0; }
+.stat + .stat { border-inline-start: 1px solid var(--line); }
+.stat dt { color: var(--muted); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.stat dd { margin: 0; font: 700 clamp(1.5rem, 4vw, 2.2rem)/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat:first-child dd { color: var(--star); }
+.stat svg { width: 22px; height: 22px; margin: 0 auto; stroke: var(--cyan); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.stat:first-child svg { stroke: var(--star); }
+.who { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .85rem; padding: 10px 14px; border-top: 1px solid var(--line); text-align: center; }
+
+/* modals */
+.scrim {
+  position: fixed; inset: 0; z-index: 20; background: rgba(3,6,18,.78); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.modal {
+  width: min(460px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 20px; padding: 24px; position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+.modal h2 { margin: 0 0 14px; font: 700 1.4rem/1.2 var(--f-display); letter-spacing: .04em; }
+.xbtn { position: absolute; top: 12px; inset-inline-end: 12px; width: 40px; height: 40px; border-radius: 10px; background: none; border: 1px solid transparent; font-size: 1.4rem; color: var(--muted); }
+.xbtn:hover { border-color: var(--line); color: var(--fg); }
+.howto { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.howto li { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; }
+.howto .ic { width: 40px; height: 40px; border-radius: 10px; background: var(--panel-2); display: grid; place-items: center; }
+.howto .ic svg { width: 24px; height: 24px; }
+kbd { font: 600 .8rem var(--f-body); background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--bg); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+.tabs button { min-height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--fg); }
+form.acct { display: grid; gap: 12px; }
+form.acct label { display: grid; gap: 6px; font-size: .88rem; color: var(--muted); }
+form.acct input {
+  min-height: 46px; padding: 0 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line);
+  color: var(--fg); font: inherit; width: 100%;
+}
+form.acct input:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 0 3px rgba(76,195,255,.25); }
+.btn {
+  min-height: 46px; padding: 0 20px; border-radius: 10px; border: 0; background: var(--accent); color: var(--accent-ink);
+  font: 700 1rem var(--f-display); letter-spacing: .05em;
+}
+.btn.ghost { background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); }
+.msg { min-height: 1.4em; margin: 0; font-size: .9rem; color: var(--danger); }
+.msg.ok { color: #7be8a6; }
+.fine { color: var(--muted); font-size: .82rem; margin: 12px 0 0; }
+
+/* game overlay */
+.game {
+  position: fixed; inset: 0; z-index: 30; background: #030615; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+}
+.hud { width: min(960px, 100%); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hbtns { display: flex; gap: 8px; margin-inline-start: auto; }
+.hbtns .tool { min-height: 40px; padding: 0 14px; }
+.tool:disabled { opacity: .45; cursor: default; }
+.cnt { background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 0 8px; font-size: .78rem; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 999px; padding: 2px 12px 2px 6px; font-size: .82rem; font-weight: 600; }
+.chip .medal { width: 20px; height: 24px; }
+.medal { width: 44px; height: 52px; flex: none; }
+.awgrid { display: grid; gap: 10px; }
+.aw { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 8px 8px; }
+.aw small { display: block; color: var(--muted); line-height: 1.35; }
+.aw.off b { color: var(--muted); }
+.mlogo { margin-bottom: 12px; }
+.cardlogo .logo svg { width: 28px; height: 28px; }
+.cardlogo .logo b { font-size: 1rem; }
+.toast { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 58px); left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 14px; padding: 6px 16px 6px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: pop .3s ease-out; }
+.toast small { display: block; color: var(--accent); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; }
+.toast .medal { width: 28px; height: 34px; }
+@keyframes pop { from { opacity: 0; transform: translate(-50%, -8px); } }
+.facts { display: flex; gap: 10px; }
+.facts span { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 16px; display: grid; gap: 2px; text-align: center; }
+.facts small, .cap { color: var(--muted); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; }
+.facts b { font: 700 1.2rem var(--f-display); font-variant-numeric: tabular-nums; }
+.next { margin: 0; color: var(--muted); font-size: .9rem; }
+@media (max-width: 520px) { .endcard .big { font-size: 2rem; } .endcard h2 { font-size: 1.15rem; } .cardlogo, .cap { display: none; } .endcard > div { gap: 6px; padding: 8px; } .facts span { padding: 3px 12px; } .facts b { font-size: 1.05rem; } .endcard .btn { min-height: 40px; } }
+@media (max-width: 520px) { .pill { padding: 4px 11px; font-size: 1rem; } .pill small { font-size: .62rem; } }
+.pill { display: inline-flex; align-items: baseline; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; font: 700 1.2rem var(--f-display); font-variant-numeric: tabular-nums; }
+.pill small { font: 500 .72rem var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pill.low { border-color: var(--danger); color: var(--danger); }
+.stagebox { position: relative; flex: 1 1 auto; min-height: 0; width: 100%; display: grid; place-items: center; }
+.stagebox canvas {
+  display: block; background: #050a24; border: 1px solid var(--line); border-radius: 14px;
+  width: min(100%, calc((100dvh - 170px) * 4 / 3)); aspect-ratio: 4 / 3; max-width: 960px; touch-action: none;
+}
+.endcard {
+  position: absolute; inset: 0; display: grid; place-items: center; background: rgba(3,6,18,.72); border-radius: 14px;
+  width: min(100%, calc((100dvh - 170px) * 4 / 3)); aspect-ratio: 4 / 3; max-width: 960px; margin: auto; text-align: center;
+}
+.endcard > div { display: grid; gap: 10px; justify-items: center; padding: 14px; max-height: 100%; overflow: auto; }
+.endcard h2 { margin: 0; font: 700 clamp(1.4rem, 5vw, 2.4rem)/1.1 var(--f-display); }
+.endcard .big { font: 700 clamp(2.6rem, 10vw, 5rem)/1 var(--f-display); color: var(--star); }
+.endcard .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.badge { background: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 3px 12px; border-radius: 999px; font-size: .85rem; letter-spacing: .06em; }
+.dpad { display: none; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(2, 50px); gap: 6px; direction: ltr; }
+.dpad button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; font-size: 1.3rem; touch-action: none; user-select: none; -webkit-user-select: none; }
+.dpad button:active { background: var(--line); }
+.dpad .u { grid-column: 2; grid-row: 1; } .dpad .l { grid-column: 1; grid-row: 2; } .dpad .d { grid-column: 2; grid-row: 2; } .dpad .r { grid-column: 3; grid-row: 2; }
+@media (pointer: coarse), (max-width: 720px) { .dpad { display: grid; } .stagebox canvas, .endcard { width: min(100%, calc((100dvh - 320px) * 4 / 3)); } }
+
+@media (max-width: 760px) {
+  .lower { grid-template-columns: 1fr; }
+  .rocketpanel { min-height: 260px; }
+  .tool span.lbl { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rocketpanel svg.big, .rocketpanel .flame, .rocketpanel .sparkle { animation: none; }
+  .play { transition: none; }
+}
+[dir="rtl"] .play svg { transform: scaleX(-1); }
+</style>
+
+<div class="wrap">
+  <!-- bar -->
+  <header class="bar">
+    <div class="brand">
+      <!-- 5: moon and space decoration -->
+      <svg class="moon" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><radialGradient id="mg" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#f3f1e6"/><stop offset="1" stop-color="#9aa0bd"/></radialGradient></defs>
+        <circle cx="30" cy="34" r="22" fill="url(#mg)"/>
+        <circle cx="22" cy="28" r="4.5" fill="#b4b8cf"/><circle cx="37" cy="42" r="6" fill="#b4b8cf"/><circle cx="38" cy="25" r="2.6" fill="#b4b8cf"/><circle cx="24" cy="44" r="2.2" fill="#b4b8cf"/>
+        <path d="M54 8l1.6 4.4L60 14l-4.4 1.6L54 20l-1.6-4.4L48 14l4.4-1.6z" fill="#facc15"/>
+        <circle cx="8" cy="10" r="1.6" fill="#fff"/><circle cx="58" cy="44" r="1.3" fill="#cfe3ff"/><circle cx="10" cy="58" r="1.2" fill="#fff"/>
+      </svg>
+      <!-- 4: game logo -->
+      <div class="logo" aria-label="Star Dash">
+        <svg viewBox="0 0 44 44" aria-hidden="true">
+          <circle cx="22" cy="22" r="20" fill="#131c42" stroke="#28346a" stroke-width="2"/>
+          <ellipse cx="22" cy="24" rx="19" ry="6" fill="none" stroke="#4cc3ff" stroke-width="2" transform="rotate(-24 22 24)"/>
+          <polygon points="22,8 25.4,17.6 35.6,17.6 27.4,23.6 30.4,33.2 22,27.4 13.6,33.2 16.6,23.6 8.4,17.6 18.6,17.6" fill="#facc15" stroke="#a16207" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <b>Star <i>Dash</i></b>
+      </div>
+    </div>
+    <nav class="tools" aria-label="Menu">
+      <!-- 1: create account -->
+      <button class="tool" id="btnAcct" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4-6.5 8-6.5s7 2 8 6.5"/></svg>
+        <span class="lbl" id="acctLbl" data-i18n="create">Create account</span>
+      </button>
+      <!-- 2: game instructions -->
+      <button class="tool" id="btnHow" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.6 2.6 0 1 1 3.6 2.4c-.8.4-1.2 1-1.2 1.8"/><path d="M12 17.2h.01"/></svg>
+        <span class="lbl" data-i18n="howtoBtn">How to play</span>
+      </button>
+      <!-- awards -->
+      <button class="tool" id="btnAwards" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg>
+        <span class="lbl" data-i18n="awards">Awards</span><span class="cnt" id="awCount">0/7</span>
+      </button>
+      <!-- 3: select the language -->
+      <button class="tool" id="btnLang" type="button" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 3.8 5.8 3.8 9s-1.2 6.2-3.8 9c-2.6-2.8-3.8-5.8-3.8-9S9.4 5.8 12 3z"/></svg>
+        <span class="lbl" id="langLbl">English</span>
+      </button>
+      <div class="langmenu" id="langMenu" role="menu" hidden></div>
+    </nav>
+  </header>
+
+  <!-- title + play -->
+  <section class="hero">
+    <h1 data-i18n-html="title">Explore <em>The Galaxy</em></h1>
+    <p data-i18n="tag">Steer your rocket and grab as many stars as you can before 30 seconds run out.</p>
+    <button class="play" id="btnPlay" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+      <span data-i18n="play">Play!</span>
+    </button>
+  </section>
+
+  <section class="lower">
+    <!-- 6: rocket image decoration -->
+    <div class="rocketpanel" aria-hidden="true">
+      <svg class="sparkle a" viewBox="0 0 24 24"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+      <svg class="sparkle b" viewBox="0 0 24 24"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+      <svg class="sparkle c" viewBox="0 0 24 24"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+      <svg class="sparkle d" viewBox="0 0 24 24"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+      <svg class="big" viewBox="0 0 100 100">
+        <g class="flame"><path d="M40 76 Q50 98 60 76Z" fill="#fb923c" stroke="#c2410c" stroke-width="2"/><path d="M44 76 Q50 90 56 76Z" fill="#fde047"/></g>
+        <path d="M36 58 L18 80 L36 76Z M64 58 L82 80 L64 76Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M50 6 C66 24 68 50 64 74 L36 74 C32 50 34 24 50 6Z" fill="#e5e7eb" stroke="#374151" stroke-width="3"/>
+        <path d="M41 62h18" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="50" cy="40" r="9" fill="#38bdf8" stroke="#374151" stroke-width="3"/>
+        <path d="M46 37a5 5 0 0 1 4-2.4" stroke="#e0f2fe" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- 7 best score, 8 time, 9 last round score -->
+    <dl class="stats" style="margin:0">
+      <div class="stat">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2 6.4 20.3l1.2-6.3L3 9.6l6.3-.8z"/></svg>
+        <dt data-i18n="best">Best score</dt><dd id="stBest">0</dd>
+      </div>
+      <div class="stat">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg>
+        <dt data-i18n="time">Time</dt><dd id="stTime">0:30</dd>
+      </div>
+      <div class="stat">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+        <dt data-i18n="last">Last round</dt><dd id="stLast">–</dd>
+      </div>
+      <p class="who" id="who"></p>
+    </dl>
+  </section>
+</div>
+
+<!-- modal -->
+<div class="scrim" id="scrim" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <button class="xbtn" id="mClose" type="button" aria-label="Close">×</button>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<!-- game -->
+<div class="game" id="game" hidden role="dialog" aria-modal="true" aria-label="Star Dash">
+  <div class="toast" id="toast" hidden></div>
+  <div class="hud">
+    <div class="pill"><small data-i18n="score">Score</small><span id="hScore">0</span></div>
+    <div class="pill"><small data-i18n="level">Level</small><span id="hLevel">1</span></div>
+    <div class="pill" id="hTimeBox"><small data-i18n="timeLeft">Time</small><span id="hTime">30</span></div>
+    <div class="hbtns">
+      <button class="tool" id="gPause" type="button">❚❚ Pause</button>
+      <button class="tool" id="gStop" type="button">■ Stop</button>
+    </div>
+  </div>
+  <div class="stagebox">
+    <canvas id="cv" width="960" height="720" aria-label="Game area"></canvas>
+    <div class="endcard" id="levelCard" hidden>
+      <div>
+        <div class="cardlogo"></div>
+        <h2 id="lvTitle"></h2>
+        <div class="big" id="lvScore">0</div>
+        <small class="cap" data-i18n="score">Score</small>
+        <div class="facts">
+          <span><small data-i18n="tleft">Time left</small><b id="lvTime"></b></span>
+          <span><small data-i18n="bonus">Bonus</small><b id="lvBonus"></b></span>
+        </div>
+        <p class="next" id="lvNext"></p>
+        <div class="chips" id="lvAw" hidden></div>
+        <button class="btn" id="lvGo" type="button" data-i18n="cont">Continue</button>
+      </div>
+    </div>
+    <div class="endcard" id="pauseCard" hidden>
+      <div>
+        <div class="cardlogo"></div>
+        <h2 data-i18n="paused">Paused</h2>
+        <div class="row">
+          <button class="btn" id="resume" type="button" data-i18n="resume">Resume</button>
+          <button class="btn ghost" id="home2" type="button" data-i18n="home">Back to menu</button>
+        </div>
+      </div>
+    </div>
+    <div class="endcard" id="end" hidden>
+      <div>
+        <div class="cardlogo"></div>
+        <h2 id="endTitle"></h2>
+        <div class="big" id="endScore">0</div>
+        <span class="badge" id="endBadge" hidden></span>
+        <div class="chips" id="endAw" hidden></div>
+        <div class="row">
+          <button class="btn" id="again" type="button" data-i18n="again">Play again</button>
+          <button class="btn ghost" id="home" type="button" data-i18n="home">Back to menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dpad" id="dpad" aria-hidden="true">
+    <button class="u" data-k="up" type="button">▲</button>
+    <button class="l" data-k="left" type="button">◀</button>
+    <button class="d" data-k="down" type="button">▼</button>
+    <button class="r" data-k="right" type="button">▶</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  /* ---------- storage (falls back to memory) ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } }
+  function sset(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  /* ---------- translations ---------- */
+  var L = {
+    en: { name: "English", dir: "ltr",
+      create: "Create account", signedIn: "Account", howtoBtn: "How to play",
+      title: "Explore <em>The Galaxy</em>", tag: "Steer your rocket and grab as many stars as you can before 30 seconds run out.",
+      play: "Play!", best: "Best score", time: "Time", last: "Last round", score: "Score", timeLeft: "Time", quit: "Quit",
+      again: "Play again", home: "Back to menu", ended: "Game ended! Score: ", newBest: "NEW BEST",
+      howTitle: "How to play",
+      h1: "Move your rocket with the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> arrow keys or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. On a phone, use the on-screen buttons.",
+      h2: "Touch the star with your rocket to collect it. Each star is worth 1 point and a new one appears somewhere else.",
+      h3: "You have 30 seconds. When the timer reaches 0 the round ends and your score is saved.",
+      h4: "Beat your best score. Create an account to keep your scores under your name.",
+      acctTitle: "Your account", tabCreate: "Create account", tabIn: "Sign in", user: "Username", pass: "Password",
+      doCreate: "Create account", doIn: "Sign in", out: "Sign out", hello: "Signed in as ",
+      eShort: "Username needs 2+ characters and password 4+.", eTaken: "That username is taken.", eBad: "Wrong username or password.",
+      okCreated: "Account created. You are signed in.", note: "Accounts and scores are saved in this browser only.", guest: "Playing as guest",
+      as: "Scores for " },
+    ar: { name: "العربية", dir: "rtl",
+      create: "إنشاء حساب", signedIn: "الحساب", howtoBtn: "طريقة اللعب",
+      title: "استكشف <em>المجرة</em>", tag: "وجّه صاروخك واجمع أكبر عدد من النجوم قبل انتهاء الثلاثين ثانية.",
+      play: "العب!", best: "أفضل نتيجة", time: "الوقت", last: "الجولة الأخيرة", score: "النتيجة", timeLeft: "الوقت", quit: "خروج",
+      again: "العب مجدداً", home: "العودة للقائمة", ended: "انتهت اللعبة! النتيجة: ", newBest: "رقم قياسي جديد",
+      howTitle: "طريقة اللعب",
+      h1: "حرّك صاروخك بأسهم لوحة المفاتيح <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> أو بالأزرار <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. على الهاتف استخدم الأزرار على الشاشة.",
+      h2: "المس النجمة بصاروخك لتجمعها. كل نجمة تساوي نقطة واحدة وتظهر نجمة جديدة في مكان آخر.",
+      h3: "لديك 30 ثانية. عندما يصل المؤقت إلى 0 تنتهي الجولة وتُحفظ نتيجتك.",
+      h4: "حاول تحطيم أفضل نتيجة لك. أنشئ حساباً لتحفظ نتائجك باسمك.",
+      acctTitle: "حسابك", tabCreate: "إنشاء حساب", tabIn: "تسجيل الدخول", user: "اسم المستخدم", pass: "كلمة المرور",
+      doCreate: "إنشاء حساب", doIn: "دخول", out: "تسجيل الخروج", hello: "تم الدخول باسم ",
+      eShort: "اسم المستخدم حرفان على الأقل وكلمة المرور 4 أحرف على الأقل.", eTaken: "اسم المستخدم مستخدم مسبقاً.", eBad: "اسم المستخدم أو كلمة المرور غير صحيحة.",
+      okCreated: "تم إنشاء الحساب وتسجيل دخولك.", note: "الحسابات والنتائج تُحفظ في هذا المتصفح فقط.", guest: "تلعب كضيف",
+      as: "نتائج " },
+    fr: { name: "Français", dir: "ltr",
+      create: "Créer un compte", signedIn: "Compte", howtoBtn: "Comment jouer",
+      title: "Explore <em>la galaxie</em>", tag: "Pilote ta fusée et attrape un maximum d’étoiles avant la fin des 30 secondes.",
+      play: "Jouer !", best: "Meilleur score", time: "Temps", last: "Dernière partie", score: "Score", timeLeft: "Temps", quit: "Quitter",
+      again: "Rejouer", home: "Retour au menu", ended: "Partie terminée ! Score : ", newBest: "NOUVEAU RECORD",
+      howTitle: "Comment jouer",
+      h1: "Déplace ta fusée avec les flèches <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. Sur téléphone, utilise les boutons à l’écran.",
+      h2: "Touche l’étoile avec ta fusée pour la ramasser. Chaque étoile vaut 1 point et une nouvelle apparaît ailleurs.",
+      h3: "Tu as 30 secondes. À 0, la partie se termine et ton score est enregistré.",
+      h4: "Bats ton meilleur score. Crée un compte pour garder tes scores à ton nom.",
+      acctTitle: "Ton compte", tabCreate: "Créer un compte", tabIn: "Connexion", user: "Nom d’utilisateur", pass: "Mot de passe",
+      doCreate: "Créer le compte", doIn: "Se connecter", out: "Se déconnecter", hello: "Connecté en tant que ",
+      eShort: "Nom : 2 caractères minimum, mot de passe : 4 minimum.", eTaken: "Ce nom est déjà pris.", eBad: "Nom ou mot de passe incorrect.",
+      okCreated: "Compte créé. Tu es connecté.", note: "Les comptes et scores sont enregistrés dans ce navigateur uniquement.", guest: "Joue en invité",
+      as: "Scores de " },
+    es: { name: "Español", dir: "ltr",
+      create: "Crear cuenta", signedIn: "Cuenta", howtoBtn: "Cómo jugar",
+      title: "Explora <em>la galaxia</em>", tag: "Dirige tu cohete y recoge todas las estrellas que puedas antes de que pasen 30 segundos.",
+      play: "¡Jugar!", best: "Mejor puntuación", time: "Tiempo", last: "Última partida", score: "Puntos", timeLeft: "Tiempo", quit: "Salir",
+      again: "Jugar otra vez", home: "Volver al menú", ended: "¡Fin del juego! Puntos: ", newBest: "NUEVO RÉCORD",
+      howTitle: "Cómo jugar",
+      h1: "Mueve el cohete con las flechas <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> o con <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. En el móvil usa los botones de la pantalla.",
+      h2: "Toca la estrella con el cohete para recogerla. Cada estrella vale 1 punto y aparece otra en un lugar distinto.",
+      h3: "Tienes 30 segundos. Al llegar a 0 termina la partida y se guarda tu puntuación.",
+      h4: "Supera tu mejor puntuación. Crea una cuenta para guardar tus puntos con tu nombre.",
+      acctTitle: "Tu cuenta", tabCreate: "Crear cuenta", tabIn: "Iniciar sesión", user: "Usuario", pass: "Contraseña",
+      doCreate: "Crear cuenta", doIn: "Entrar", out: "Cerrar sesión", hello: "Sesión iniciada como ",
+      eShort: "Usuario: mínimo 2 caracteres; contraseña: mínimo 4.", eTaken: "Ese usuario ya existe.", eBad: "Usuario o contraseña incorrectos.",
+      okCreated: "Cuenta creada. Ya has iniciado sesión.", note: "Las cuentas y puntuaciones se guardan solo en este navegador.", guest: "Jugando como invitado",
+      as: "Puntos de " }
+  };
+  var lang = sget("sd_lang", null);
+  if (!L[lang]) { lang = ((navigator.language || "en").slice(0, 2)); if (!L[lang]) lang = "en"; }
+  function T(k) { return L[lang][k] != null ? L[lang][k] : L.en[k]; }
+
+  /* ---------- helpers ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmt(s) { return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); }
+  var ROUND = 30;
+
+  /* ---------- accounts ---------- */
+  var users = sget("sd_users", {});
+  var session = sget("sd_session", null);
+  if (session && !users[session]) session = null;
+  var guest = sget("sd_guest", { best: 0, last: null });
+  function rec() { return session ? users[session] : guest; }
+  function saveRec() { if (session) sset("sd_users", users); else sset("sd_guest", guest); }
+  function hash(name, pw) {
+    var data = new TextEncoder().encode("sd:" + name.toLowerCase() + ":" + pw);
+    if (window.crypto && crypto.subtle) {
+      return crypto.subtle.digest("SHA-256", data).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+      });
+    }
+    return Promise.resolve(btoa(unescape(encodeURIComponent(name + ":" + pw))));
+  }
+
+  /* ---------- render text + stats ---------- */
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = L[lang].dir;
+    document.querySelectorAll("[data-i18n]").forEach(function (n) { n.textContent = T(n.getAttribute("data-i18n")); });
+    document.querySelectorAll("[data-i18n-html]").forEach(function (n) { n.innerHTML = T(n.getAttribute("data-i18n-html")); });
+    $("langLbl").textContent = L[lang].name;
+    refresh();
+    buildLangMenu();
+  }
+  function refresh() {
+    var r = rec();
+    $("stBest").textContent = r.best;
+    $("stLast").textContent = r.last == null ? "–" : r.last;
+    $("stTime").textContent = fmt(ROUND);
+    $("acctLbl").textContent = session ? session : T("create");
+    $("who").textContent = session ? T("as") + session : T("guest");
+    $("awCount").textContent = awCountText();
+  }
+
+  /* ---------- modal ---------- */
+  var lastFocus = null;
+  function openModal(html, focusSel) {
+    lastFocus = document.activeElement;
+    $("mBody").innerHTML = html;
+    $("scrim").hidden = false;
+    var f = focusSel ? $("mBody").querySelector(focusSel) : $("mClose");
+    (f || $("mClose")).focus();
+  }
+  function closeModal() { $("scrim").hidden = true; $("mBody").innerHTML = ""; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  $("mClose").onclick = closeModal;
+  $("scrim").addEventListener("mousedown", function (e) { if (e.target === $("scrim")) closeModal(); });
+
+  var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="#4cc3ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">';
+  function howto() {
+    openModal('<h2 id="mTitle">' + esc(T("howTitle")) + '</h2><ul class="howto">' +
+      '<li><span class="ic">' + ARROW + '<path d="M12 4v16M4 12h16M12 4l-3 3M12 4l3 3M12 20l-3-3M12 20l3-3M4 12l3-3M4 12l3 3M20 12l-3-3M20 12l-3 3"/></svg></span><span>' + T("h1") + '</span></li>' +
+      '<li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2 6.4 20.3l1.2-6.3L3 9.6l6.3-.8z" fill="#facc15" stroke="#a16207" stroke-width="1.5" stroke-linejoin="round"/></svg></span><span>' + T("h2") + '</span></li>' +
+      '<li><span class="ic">' + ARROW.replace("#4cc3ff", "#ff7b7b") + '<circle cx="12" cy="14" r="7"/><path d="M15 8l2-3M17 4.5l2 .5M18 7l2 1"/></svg></span><span>' + T("h5") + '</span></li>' +
+      '<li><span class="ic">' + ARROW + '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg></span><span>' + T("h3") + '</span></li>' +
+      '<li><span class="ic">' + ARROW + '<path d="M9 5v14M15 5v14"/></svg></span><span>' + T("h6") + '</span></li>' +
+      '<li><span class="ic">' + ARROW + '<path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg></span><span>' + T("h4") + '</span></li>' +
+      '</ul>');
+  }
+
+  var acctMode = "create";
+  function account() {
+    if (session) {
+      openModal('<h2 id="mTitle">' + esc(T("acctTitle")) + '</h2><p>' + esc(T("hello")) + '<b>' + esc(session) + '</b></p>' +
+        '<p class="fine">' + esc(T("note")) + '</p><button class="btn ghost" id="signOut" type="button">' + esc(T("out")) + '</button>', "#signOut");
+      $("signOut").onclick = function () { session = null; sset("sd_session", null); refresh(); closeModal(); };
+      return;
+    }
+    var create = acctMode === "create";
+    openModal('<h2 id="mTitle">' + esc(T("acctTitle")) + '</h2>' +
+      '<div class="tabs" role="tablist"><button type="button" role="tab" id="tCreate" aria-selected="' + create + '">' + esc(T("tabCreate")) + '</button>' +
+      '<button type="button" role="tab" id="tIn" aria-selected="' + !create + '">' + esc(T("tabIn")) + '</button></div>' +
+      '<form class="acct" id="acctForm" autocomplete="off">' +
+      '<label for="fUser">' + esc(T("user")) + '<input id="fUser" maxlength="20" required></label>' +
+      '<label for="fPass">' + esc(T("pass")) + '<input id="fPass" type="password" maxlength="40" required></label>' +
+      '<p class="msg" id="fMsg" role="status"></p>' +
+      '<button class="btn" type="submit">' + esc(T(create ? "doCreate" : "doIn")) + '</button></form>' +
+      '<p class="fine">' + esc(T("note")) + '</p>', "#fUser");
+    $("tCreate").onclick = function () { acctMode = "create"; account(); };
+    $("tIn").onclick = function () { acctMode = "in"; account(); };
+    $("acctForm").onsubmit = function (e) {
+      e.preventDefault();
+      var name = $("fUser").value.trim(), pw = $("fPass").value, msg = $("fMsg");
+      msg.className = "msg";
+      if (name.length < 2 || pw.length < 4) { msg.textContent = T("eShort"); return; }
+      var key = Object.keys(users).filter(function (k) { return k.toLowerCase() === name.toLowerCase(); })[0];
+      hash(name, pw).then(function (h) {
+        if (create) {
+          if (key) { msg.textContent = T("eTaken"); return; }
+          users[name] = { h: h, best: 0, last: null };
+          sset("sd_users", users);
+          session = name;
+        } else {
+          if (!key || users[key].h !== h) { msg.textContent = T("eBad"); return; }
+          session = key;
+        }
+        sset("sd_session", session);
+        refresh();
+        msg.className = "msg ok"; msg.textContent = create ? T("okCreated") : T("hello") + session;
+        setTimeout(closeModal, 900);
+      });
+    };
+  }
+  $("btnHow").onclick = howto;
+  $("btnAcct").onclick = account;
+
+  /* ---------- language menu ---------- */
+  function buildLangMenu() {
+    var m = $("langMenu");
+    m.innerHTML = Object.keys(L).map(function (k) {
+      return '<button type="button" role="menuitemradio" aria-checked="' + (k === lang) + '" data-l="' + k + '" lang="' + k + '">' + esc(L[k].name) + '</button>';
+    }).join("");
+  }
+  $("btnLang").onclick = function (e) {
+    e.stopPropagation();
+    var open = $("langMenu").hidden;
+    $("langMenu").hidden = !open;
+    this.setAttribute("aria-expanded", String(open));
+  };
+  $("langMenu").onclick = function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    lang = b.getAttribute("data-l"); sset("sd_lang", lang);
+    $("langMenu").hidden = true; $("btnLang").setAttribute("aria-expanded", "false");
+    applyLang();
+  };
+  document.addEventListener("click", function () { $("langMenu").hidden = true; $("btnLang").setAttribute("aria-expanded", "false"); });
+
+  /* ---------- extra strings (levels, hazards, pause) ---------- */
+  var X = {
+    en: { level: "Level", pause: "Pause", resume: "Resume", stop: "Stop", paused: "Paused", lost: "Boom! You lost. Score: ", lvlUp: "Level ",
+      h2: "Touch the small star with your rocket to collect it. Each star is worth 1 point, and your rocket grows as your score goes up.",
+      h3: "You have 30 seconds. Every 5 stars you reach a new level: you get +5 seconds, but more enemies and bombs appear.",
+      h5: "Do not touch enemies, bombs or the red edge of the screen. Any hit blows up your rocket and ends the round.",
+      h6: "Press <kbd>P</kbd> or <kbd>Esc</kbd> to pause." },
+    ar: { level: "المستوى", pause: "إيقاف مؤقت", resume: "متابعة", stop: "إيقاف", paused: "اللعبة متوقفة مؤقتاً", lost: "بوووم! خسرت. النتيجة: ", lvlUp: "المستوى ",
+      h2: "المس النجمة الصغيرة بصاروخك لتجمعها. كل نجمة تساوي نقطة، ويكبر صاروخك كلما زادت نتيجتك.",
+      h3: "لديك 30 ثانية. كل 5 نجوم تنتقل إلى مستوى جديد: تحصل على +5 ثوانٍ لكن يظهر مزيد من الأعداء والقنابل.",
+      h5: "لا تلمس الأعداء أو القنابل أو الحافة الحمراء للشاشة. أي اصطدام ينسف صاروخك وتنتهي الجولة.",
+      h6: "اضغط <kbd>P</kbd> أو <kbd>Esc</kbd> للإيقاف المؤقت." },
+    fr: { level: "Niveau", pause: "Pause", resume: "Reprendre", stop: "Arrêter", paused: "En pause", lost: "Boum ! Perdu. Score : ", lvlUp: "Niveau ",
+      h2: "Touche la petite étoile avec ta fusée pour la ramasser. Chaque étoile vaut 1 point et ta fusée grossit avec ton score.",
+      h3: "Tu as 30 secondes. Toutes les 5 étoiles, tu passes au niveau suivant : +5 secondes, mais plus d’ennemis et de bombes.",
+      h5: "Ne touche ni les ennemis, ni les bombes, ni le bord rouge de l’écran. Un contact fait exploser ta fusée et la partie s’arrête.",
+      h6: "Appuie sur <kbd>P</kbd> ou <kbd>Échap</kbd> pour mettre en pause." },
+    es: { level: "Nivel", pause: "Pausa", resume: "Continuar", stop: "Detener", paused: "En pausa", lost: "¡Boom! Perdiste. Puntos: ", lvlUp: "Nivel ",
+      h2: "Toca la estrella pequeña con el cohete para recogerla. Cada estrella vale 1 punto y el cohete crece al subir tu puntuación.",
+      h3: "Tienes 30 segundos. Cada 5 estrellas subes de nivel: +5 segundos, pero aparecen más enemigos y bombas.",
+      h5: "No toques enemigos, bombas ni el borde rojo de la pantalla. Cualquier choque destruye el cohete y termina la partida.",
+      h6: "Pulsa <kbd>P</kbd> o <kbd>Esc</kbd> para pausar." }
+  };
+  Object.keys(X).forEach(function (k) { Object.keys(X[k]).forEach(function (j) { L[k][j] = X[k][j]; }); });
+  var Y = {
+    en: { awards: "Awards", unlocked: "unlocked", newAward: "New award", done: "complete!", cont: "Continue", tleft: "Time left", bonus: "Bonus", bombs: "bombs", enemies: "enemies",
+      a_first: "First Star", d_first: "Collect your first star.", a_lvl2: "Rookie Pilot", d_lvl2: "Reach level 2.", a_lvl3: "Navigator", d_lvl3: "Reach level 3.",
+      a_lvl5: "Star Commander", d_lvl5: "Reach level 5.", a_collector: "Star Collector", d_collector: "Collect 10 stars in one round.",
+      a_hunter: "Galaxy Hunter", d_hunter: "Collect 25 stars in one round.", a_survivor: "Survivor", d_survivor: "Let the time run out with at least 5 stars." },
+    ar: { awards: "الأوسمة", unlocked: "مفتوحة", newAward: "وسام جديد", done: "مكتمل!", cont: "متابعة", tleft: "الوقت المتبقي", bonus: "مكافأة", bombs: "قنابل", enemies: "أعداء",
+      a_first: "النجمة الأولى", d_first: "اجمع أول نجمة لك.", a_lvl2: "طيّار مبتدئ", d_lvl2: "صل إلى المستوى 2.", a_lvl3: "الملاح", d_lvl3: "صل إلى المستوى 3.",
+      a_lvl5: "قائد النجوم", d_lvl5: "صل إلى المستوى 5.", a_collector: "جامع النجوم", d_collector: "اجمع 10 نجوم في جولة واحدة.",
+      a_hunter: "صيّاد المجرة", d_hunter: "اجمع 25 نجمة في جولة واحدة.", a_survivor: "الناجي", d_survivor: "اترك الوقت ينتهي وأنت تملك 5 نجوم على الأقل." },
+    fr: { awards: "Trophées", unlocked: "débloqués", newAward: "Nouveau trophée", done: "terminé !", cont: "Continuer", tleft: "Temps restant", bonus: "Bonus", bombs: "bombes", enemies: "ennemis",
+      a_first: "Première étoile", d_first: "Ramasse ta première étoile.", a_lvl2: "Pilote débutant", d_lvl2: "Atteins le niveau 2.", a_lvl3: "Navigateur", d_lvl3: "Atteins le niveau 3.",
+      a_lvl5: "Commandant stellaire", d_lvl5: "Atteins le niveau 5.", a_collector: "Collectionneur d’étoiles", d_collector: "Ramasse 10 étoiles en une partie.",
+      a_hunter: "Chasseur de galaxie", d_hunter: "Ramasse 25 étoiles en une partie.", a_survivor: "Survivant", d_survivor: "Laisse le temps s’écouler avec au moins 5 étoiles." },
+    es: { awards: "Premios", unlocked: "desbloqueados", newAward: "Nuevo premio", done: "completado", cont: "Continuar", tleft: "Tiempo restante", bonus: "Bono", bombs: "bombas", enemies: "enemigos",
+      a_first: "Primera estrella", d_first: "Recoge tu primera estrella.", a_lvl2: "Piloto novato", d_lvl2: "Llega al nivel 2.", a_lvl3: "Navegante", d_lvl3: "Llega al nivel 3.",
+      a_lvl5: "Comandante estelar", d_lvl5: "Llega al nivel 5.", a_collector: "Coleccionista de estrellas", d_collector: "Recoge 10 estrellas en una partida.",
+      a_hunter: "Cazador de galaxias", d_hunter: "Recoge 25 estrellas en una partida.", a_survivor: "Superviviente", d_survivor: "Deja que se acabe el tiempo con al menos 5 estrellas." }
+  };
+  Object.keys(Y).forEach(function (k) { Object.keys(Y[k]).forEach(function (j) { L[k][j] = Y[k][j]; }); });
+
+  /* ---------- game ---------- */
+  var cv = $("cv"), ctx = cv.getContext("2d");
+  var W = 480, H = 360, STEP = 5, BONUS = 5;
+  var imgRocket = new Image(), imgStar = new Image();
+  imgRocket.src = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="M50 6 C66 24 68 50 64 74 L36 74 C32 50 34 24 50 6Z" fill="#e5e7eb" stroke="#374151" stroke-width="3"/><circle cx="50" cy="40" r="9" fill="#38bdf8" stroke="#374151" stroke-width="3"/><path d="M36 58 L18 80 L36 76Z M64 58 L82 80 L64 76Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" stroke-linejoin="round"/><path d="M40 76 Q50 98 60 76Z" fill="#fb923c" stroke="#c2410c" stroke-width="2"/></svg>');
+  imgStar.src = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="32" fill="#fde047" opacity=".25"/><polygon points="35,6 42,26 63,26 46,39 52,60 35,47 18,60 24,39 7,26 28,26" fill="#facc15" stroke="#a16207" stroke-width="3" stroke-linejoin="round"/></svg>');
+
+  var bg = []; for (var i = 0; i < 70; i++) bg.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .3, s: Math.random() * 12 + 4 });
+  var keys = { up: 0, down: 0, left: 0, right: 0 };
+  var G = { inter: false, grace: 0, newAw: [], segAw: [], on: false, paused: false, over: true, lost: false, dying: 0, time: ROUND, score: 0, lvl: 1, size: 44, rx: 0, ry: 0, ang: 0, sx: 0, sy: 0, parts: [], hz: [], banner: 0, shake: 0, t: 0, raf: 0, last: 0 };
+  function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+  function levelOf(s) { return 1 + Math.floor(s / STEP); }
+  function rocketSize() { return Math.min(84, 44 + G.score * 3); }
+  function rocketR() { return G.size * 0.36; }
+  function enemySpeed(l) { return 50 + l * 14; }
+
+  function freeSpot(minD) {
+    for (var i = 0; i < 50; i++) {
+      var x = rnd(-190, 190), y = rnd(-135, 135);
+      if (Math.hypot(x - G.rx, y - G.ry) >= minD && Math.hypot(x - G.sx, y - G.sy) > 45) return { x: x, y: y };
+    }
+    return { x: G.rx > 0 ? -190 : 190, y: G.ry > 0 ? -135 : 135 };
+  }
+  function addHazard(kind) {
+    var p = freeSpot(130), a = Math.random() * 6.283, sp = kind === "enemy" ? enemySpeed(G.lvl) : 14 + Math.random() * 12;
+    G.hz.push({ k: kind, x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: kind === "enemy" ? 14 : 12, ph: Math.random() * 6 });
+  }
+  function fillHazards() {
+    var wantB = Math.min(G.lvl, 5), wantE = Math.min(G.lvl, 6), b = 0, e = 0;
+    G.hz.forEach(function (h) { if (h.k === "bomb") b++; else e++; });
+    while (b++ < wantB) addHazard("bomb");
+    while (e++ < wantE) addHazard("enemy");
+  }
+  function placeStar() {
+    for (var i = 0; i < 50; i++) {
+      var x = rnd(-185, 185), y = rnd(-135, 135), ok = Math.hypot(x - G.rx, y - G.ry) > 60;
+      for (var j = 0; ok && j < G.hz.length; j++) if (Math.hypot(x - G.hz[j].x, y - G.hz[j].y) < 50) ok = false;
+      if (ok) { G.sx = x; G.sy = y; return; }
+    }
+    G.sx = G.rx > 0 ? -150 : 150; G.sy = G.ry > 0 ? -100 : 100;
+  }
+  function burst(x, y, n, cols, vmax, life) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.283, v = 30 + Math.random() * vmax, l = life * (.5 + Math.random() * .5);
+      G.parts.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: l, max: l, c: cols[i % cols.length], s: 2 + Math.random() * 3 });
+    }
+  }
+
+  function labels() {
+    $("gPause").textContent = (G.paused ? "▶ " + T("resume") : "❚❚ " + T("pause"));
+    $("gStop").textContent = "■ " + T("stop");
+    $("gPause").disabled = $("gStop").disabled = G.over;
+  }
+  function start() {
+    $("end").hidden = true; $("pauseCard").hidden = true; $("levelCard").hidden = true;
+    G.inter = false; G.grace = 0; G.newAw = []; G.segAw = [];
+    G.on = true; G.paused = false; G.over = false; G.lost = false; G.dying = 0;
+    G.time = ROUND; G.score = 0; G.lvl = 1; G.size = 44; G.rx = 0; G.ry = 0; G.ang = 0;
+    G.parts = []; G.hz = []; G.banner = 0; G.shake = 0; G.t = 0;
+    keys.up = keys.down = keys.left = keys.right = 0;
+    fillHazards(); placeStar(); labels(); hud();
+    cancelAnimationFrame(G.raf); G.last = performance.now(); G.raf = requestAnimationFrame(loop);
+  }
+  function openGame() { $("game").hidden = false; document.body.style.overflow = "hidden"; start(); $("gPause").focus(); }
+  function closeGame() { G.inter = false; $("levelCard").hidden = true; G.on = false; G.over = true; G.paused = false; cancelAnimationFrame(G.raf); $("game").hidden = true; document.body.style.overflow = ""; $("btnPlay").focus(); }
+  function hud() {
+    $("hScore").textContent = G.score;
+    $("hLevel").textContent = G.lvl;
+    var t = Math.max(0, Math.ceil(G.time));
+    $("hTime").textContent = t;
+    $("hTimeBox").classList.toggle("low", t <= 5);
+  }
+  function togglePause() {
+    if (!G.on || G.dying > 0 || G.inter) return;
+    G.paused = !G.paused;
+    keys.up = keys.down = keys.left = keys.right = 0;
+    $("pauseCard").hidden = !G.paused;
+    labels();
+    if (G.paused) $("resume").focus(); else $("gPause").focus();
+  }
+  function die() {
+    if (G.dying > 0) return;
+    G.dying = .9; G.lost = true; G.shake = .5;
+    var s = G.size;
+    burst(G.rx, G.ry, 46, ["#ff5a36", "#ffb23f", "#ffe9a8", "#ffffff"], 170, .9);
+    burst(G.rx, G.ry, 10, ["#9ca3af", "#e5e7eb"], 120, .9);
+  }
+  function finish(byTime) {
+    G.on = false; G.over = true; G.paused = false; G.inter = false;
+    $("pauseCard").hidden = true; $("levelCard").hidden = true;
+    if (byTime && G.score >= 5) unlock("survivor");
+    var r = rec(), isBest = G.score > r.best;
+    r.last = G.score; if (isBest) r.best = G.score;
+    saveRec(); refresh(); labels();
+    $("endTitle").textContent = (G.lost ? T("lost") : T("ended")) + G.score;
+    $("endScore").textContent = G.score;
+    $("endBadge").hidden = !(isBest && G.score > 0); $("endBadge").textContent = T("newBest");
+    chips($("endAw"), G.newAw);
+    $("end").hidden = false; $("again").focus();
+  }
+  function levelUp() {
+    G.lvl = levelOf(G.score);
+    G.time += BONUS; G.grace = 1.5;
+    G.hz.forEach(function (h) { if (h.k === "enemy") { var m = Math.hypot(h.vx, h.vy) || 1, sp = enemySpeed(G.lvl); h.vx = h.vx / m * sp; h.vy = h.vy / m * sp; } });
+    fillHazards();
+  }
+  /* ---------- awards + level screen ---------- */
+  var LOGO = '<div class="logo"><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="#131c42" stroke="#28346a" stroke-width="2"/><ellipse cx="22" cy="24" rx="19" ry="6" fill="none" stroke="#4cc3ff" stroke-width="2" transform="rotate(-24 22 24)"/><polygon points="22,8 25.4,17.6 35.6,17.6 27.4,23.6 30.4,33.2 22,27.4 13.6,33.2 16.6,23.6 8.4,17.6 18.6,17.6" fill="#facc15" stroke="#a16207" stroke-width="1.6" stroke-linejoin="round"/></svg><b>Star <i>Dash</i></b></div>';
+  var AW = [
+    { id: "first", col: "#cd8b4a", g: "★" }, { id: "lvl2", col: "#cd8b4a", g: "2" }, { id: "lvl3", col: "#c7cfe0", g: "3" },
+    { id: "collector", col: "#c7cfe0", g: "10" }, { id: "lvl5", col: "#f5c542", g: "5" }, { id: "hunter", col: "#f5c542", g: "25" },
+    { id: "survivor", col: "#4cc3ff", g: "✔" }
+  ];
+  function awById(id) { return AW.filter(function (a) { return a.id === id; })[0]; }
+  function medal(a, off) {
+    return '<svg class="medal" viewBox="0 0 48 56" aria-hidden="true"' + (off ? ' style="filter:grayscale(1);opacity:.35"' : '') + '>' +
+      '<path d="M13 2h9l5 15h-9zM35 2h-9l-5 15h9z" fill="#ef4444"/>' +
+      '<circle cx="24" cy="35" r="17" fill="' + a.col + '" stroke="#0b1030" stroke-opacity=".5" stroke-width="2"/>' +
+      '<circle cx="24" cy="35" r="12.5" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.5"/>' +
+      '<text x="24" y="' + (a.g.length > 1 ? 40 : 41) + '" text-anchor="middle" font-family="Chakra Petch,system-ui,sans-serif" font-weight="700" font-size="' + (a.g.length > 1 ? 14 : 17) + '" fill="#1a1204">' + a.g + '</text></svg>';
+  }
+  function haveCount() { var r = rec(), h = r.awards || {}; return AW.filter(function (a) { return h[a.id]; }).length; }
+  function awCountText() { return haveCount() + "/" + AW.length; }
+  var toastT = 0;
+  function toast(id) {
+    var t = $("toast");
+    t.innerHTML = medal(awById(id)) + '<span><small>' + esc(T("newAward")) + '</small><b>' + esc(T("a_" + id)) + '</b></span>';
+    t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function unlock(id) {
+    var r = rec(); if (!r.awards) r.awards = {};
+    if (r.awards[id]) return;
+    r.awards[id] = 1; G.newAw.push(id); G.segAw.push(id);
+    saveRec(); refresh(); toast(id);
+  }
+  function checkAwards() {
+    if (G.score >= 1) unlock("first");
+    if (G.score >= 10) unlock("collector");
+    if (G.score >= 25) unlock("hunter");
+    if (G.lvl >= 2) unlock("lvl2");
+    if (G.lvl >= 3) unlock("lvl3");
+    if (G.lvl >= 5) unlock("lvl5");
+  }
+  function chips(el, ids) {
+    el.innerHTML = ids.map(function (id) { return '<span class="chip">' + medal(awById(id)) + esc(T("a_" + id)) + '</span>'; }).join("");
+    el.hidden = !ids.length;
+  }
+  function showLevelCard() {
+    G.inter = true;
+    $("toast").hidden = true;
+    $("lvTitle").textContent = T("lvlUp") + (G.lvl - 1) + " " + T("done");
+    $("lvScore").textContent = G.score;
+    $("lvTime").textContent = Math.ceil(G.time) + " s";
+    $("lvBonus").textContent = "+" + BONUS + " s";
+    $("lvNext").textContent = T("lvlUp") + G.lvl + " · " + Math.min(G.lvl, 5) + " " + T("bombs") + " · " + Math.min(G.lvl, 6) + " " + T("enemies");
+    chips($("lvAw"), G.segAw); G.segAw = [];
+    $("levelCard").hidden = false; $("lvGo").focus();
+  }
+  function resumeFromLevel() { G.inter = false; $("levelCard").hidden = true; $("gPause").focus(); }
+  function awardsModal() {
+    var h = rec().awards || {};
+    openModal('<div class="mlogo">' + LOGO + '</div><h2 id="mTitle">' + esc(T("awards")) + '</h2>' +
+      '<p class="fine" style="margin:0 0 14px">' + haveCount() + ' / ' + AW.length + ' ' + esc(T("unlocked")) + '</p><div class="awgrid">' +
+      AW.map(function (a) {
+        var on = !!h[a.id];
+        return '<div class="aw' + (on ? '' : ' off') + '">' + medal(a, !on) + '<div><b>' + esc(T("a_" + a.id)) + '</b><small>' + esc(T("d_" + a.id)) + '</small></div></div>';
+      }).join("") + '</div>');
+  }
+
+  function step(dt) {
+    G.time -= dt;
+    var dx = keys.right - keys.left, dy = keys.up - keys.down;
+    G.size += (rocketSize() - G.size) * Math.min(1, dt * 8);
+    if (dx || dy) {
+      var n = Math.hypot(dx, dy), sp = 270;
+      G.rx += dx / n * sp * dt; G.ry += dy / n * sp * dt;
+      var tgt = Math.atan2(dx, dy) * 180 / Math.PI, d = ((tgt - G.ang + 540) % 360) - 180;
+      G.ang += d * Math.min(1, dt * 16);
+    }
+    moveHazards(dt);
+    var r = rocketR();
+    if (Math.abs(G.rx) + r > W / 2 || Math.abs(G.ry) + r > H / 2) { die(); return; }
+    if (G.grace > 0) G.grace -= dt;
+    for (var i = 0; G.grace <= 0 && i < G.hz.length; i++) if (Math.hypot(G.rx - G.hz[i].x, G.ry - G.hz[i].y) < r + G.hz[i].r * .85) { die(); return; }
+    if (Math.hypot(G.rx - G.sx, G.ry - G.sy) < r + 13) {
+      G.score++;
+      burst(G.sx, G.sy, 12, ["#facc15", "#fff3b0"], 110, .5);
+      var up = levelOf(G.score) > G.lvl;
+      if (up) levelUp();
+      placeStar();
+      checkAwards();
+      if (up) { hud(); showLevelCard(); return; }
+    }
+    if (G.time <= 0) { G.time = 0; hud(); finish(true); return; }
+    hud();
+  }
+  function moveHazards(dt) {
+    var bx = W / 2 - 18, by = H / 2 - 18;
+    G.hz.forEach(function (h) {
+      h.x += h.vx * dt; h.y += h.vy * dt;
+      if (h.x > bx) { h.x = bx; h.vx = -Math.abs(h.vx); } else if (h.x < -bx) { h.x = -bx; h.vx = Math.abs(h.vx); }
+      if (h.y > by) { h.y = by; h.vy = -Math.abs(h.vy); } else if (h.y < -by) { h.y = -by; h.vy = Math.abs(h.vy); }
+    });
+  }
+  function loop(now) {
+    var dt = Math.min(.05, (now - G.last) / 1000); G.last = now;
+    if (!G.paused && !G.inter) {
+      G.t += dt;
+      if (G.dying > 0) {
+        G.dying -= dt; G.shake = Math.max(0, G.shake - dt);
+        moveHazards(dt);
+        if (G.dying <= 0) finish();
+      } else if (G.on) step(dt);
+      if (G.banner > 0) G.banner -= dt;
+      G.parts = G.parts.filter(function (p) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; return p.life > 0; });
+    }
+    draw((G.paused || G.inter) ? 0 : dt);
+    if (!$("game").hidden) G.raf = requestAnimationFrame(loop);
+  }
+
+  function drawBomb(h) {
+    var p = .5 + .5 * Math.sin(G.t * 6 + h.ph);
+    ctx.save(); ctx.translate(W / 2 + h.x, H / 2 - h.y);
+    var g = ctx.createRadialGradient(0, 0, 4, 0, 0, 26);
+    g.addColorStop(0, "rgba(255,80,60," + (.25 + .25 * p) + ")"); g.addColorStop(1, "rgba(255,80,60,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 26, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#1b1b2b"; ctx.strokeStyle = "#6b7280"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 2, 12, 0, 6.283); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.beginPath(); ctx.arc(-4, -1, 3.2, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "#c9a66b"; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(5, -8); ctx.quadraticCurveTo(10, -14, 14, -12); ctx.stroke();
+    ctx.fillStyle = p > .5 ? "#ffd23f" : "#ff6a3d"; ctx.beginPath(); ctx.arc(14, -12, 2.6 + p * 2, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+  function drawEnemy(h) {
+    var bob = Math.sin(G.t * 4 + h.ph) * 1.6;
+    ctx.save(); ctx.translate(W / 2 + h.x, H / 2 - h.y + bob);
+    ctx.fillStyle = "#7dd3fc"; ctx.strokeStyle = "#0c4a6e"; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.ellipse(0, -3, 8, 8, 0, Math.PI, 0); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ef4444"; ctx.strokeStyle = "#7f1d1d"; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(0, 1, 16, 6.5, 0, 0, 6.283); ctx.fill(); ctx.stroke();
+    for (var i = -1; i <= 1; i++) { ctx.fillStyle = Math.sin(G.t * 8 + i * 2 + h.ph) > 0 ? "#fde047" : "#fff7c2"; ctx.beginPath(); ctx.arc(i * 8, 1.5, 1.8, 0, 6.283); ctx.fill(); }
+    ctx.restore();
+  }
+  function draw(dt) {
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.fillStyle = "#050a24"; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    if (G.shake > 0) ctx.translate((Math.random() - .5) * G.shake * 14, (Math.random() - .5) * G.shake * 14);
+    var g = ctx.createRadialGradient(W * .8, H * .15, 10, W * .8, H * .15, 260);
+    g.addColorStop(0, "rgba(76,195,255,.16)"); g.addColorStop(1, "rgba(76,195,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fff";
+    bg.forEach(function (s) {
+      s.y += s.s * dt; if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+      ctx.globalAlpha = .4 + .5 * Math.abs(Math.sin(G.t * 1.4 + s.x));
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    /* deadly edge */
+    ctx.save();
+    ctx.shadowColor = "#ff3b3b"; ctx.shadowBlur = 10; ctx.strokeStyle = "rgba(255,70,70," + (.7 + .25 * Math.sin(G.t * 5)) + ")"; ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    ctx.restore();
+    if (!G.over) {
+      var sz = 32 * (1 + .08 * Math.sin(G.t * 5));
+      if (imgStar.complete) ctx.drawImage(imgStar, W / 2 + G.sx - sz / 2, H / 2 - G.sy - sz / 2, sz, sz);
+    }
+    G.hz.forEach(function (h) { if (h.k === "bomb") drawBomb(h); else drawEnemy(h); });
+    G.parts.forEach(function (p) { ctx.globalAlpha = Math.max(0, p.life / p.max); ctx.fillStyle = p.c; ctx.fillRect(W / 2 + p.x - p.s / 2, H / 2 - p.y - p.s / 2, p.s, p.s); });
+    ctx.globalAlpha = 1;
+    if (!G.lost) {
+      ctx.save(); ctx.translate(W / 2 + G.rx, H / 2 - G.ry); ctx.rotate(G.ang * Math.PI / 180);
+      if (G.grace > 0) ctx.globalAlpha = .55 + .35 * Math.sin(G.t * 24);
+      if (imgRocket.complete) ctx.drawImage(imgRocket, -G.size / 2, -G.size / 2, G.size, G.size);
+      ctx.restore();
+    }
+    ctx.restore();
+    if (G.banner > 0 && !G.over) {
+      ctx.save(); ctx.globalAlpha = Math.min(1, G.banner); ctx.textAlign = "center";
+      ctx.font = "700 34px 'Chakra Petch', 'Cairo', system-ui, sans-serif"; ctx.fillStyle = "#ffb23f";
+      ctx.fillText(T("lvlUp") + G.lvl, W / 2, H / 2 - 40);
+      ctx.font = "600 18px 'Figtree', 'Cairo', system-ui, sans-serif"; ctx.fillStyle = "#e9edff";
+      ctx.fillText("+" + BONUS + " s", W / 2, H / 2 - 16);
+      ctx.restore();
+    }
+  }
+
+  function setKey(k, v) { if (k in keys) keys[k] = v; }
+  var map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", W: "up", s: "down", S: "down", a: "left", A: "left", d: "right", D: "right" };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      if (!$("scrim").hidden) closeModal();
+      else if (!$("game").hidden) { if (G.on) togglePause(); else closeGame(); }
+      else { $("langMenu").hidden = true; }
+      return;
+    }
+    if ($("game").hidden) return;
+    if (e.key === "p" || e.key === "P") { e.preventDefault(); togglePause(); return; }
+    if (!map[e.key]) return;
+    e.preventDefault(); setKey(map[e.key], 1);
+  });
+  document.addEventListener("keyup", function (e) { if (map[e.key]) setKey(map[e.key], 0); });
+  window.addEventListener("blur", function () { keys.up = keys.down = keys.left = keys.right = 0; });
+  document.addEventListener("visibilitychange", function () { if (document.hidden && !$("game").hidden && G.on && !G.paused) togglePause(); });
+  Array.prototype.forEach.call($("dpad").querySelectorAll("button"), function (b) {
+    var k = b.getAttribute("data-k");
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); setKey(k, 1); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { b.addEventListener(ev, function () { setKey(k, 0); }); });
+  });
+  $("btnPlay").onclick = openGame;
+  $("gPause").onclick = togglePause;
+  $("resume").onclick = togglePause;
+  $("gStop").onclick = function () { if (G.on) { if (G.dying > 0) G.dying = .0001; else finish(); } };
+  $("home").onclick = closeGame;
+  $("home2").onclick = closeGame;
+  $("again").onclick = start;
+  $("lvGo").onclick = resumeFromLevel;
+  $("btnAwards").onclick = awardsModal;
+  document.querySelectorAll(".cardlogo").forEach(function (n) { n.innerHTML = LOGO; });
+
+  applyLang();
+})();
+</script>
+
+</body></html>
